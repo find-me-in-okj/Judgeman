@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Judgeman</title>
+<style>
+:root{
+  --void:#080808;--surface:#111111;--surface2:#1a1a1a;--surface3:#222222;
+  --paper:#f0e6cc;--paper2:#e4d8b4;--paper-line:#c8b078;
+  --blood:#8b0000;--blood2:#b30000;--blood3:#cc1111;--blood-dim:#3d0000;
+  --gold:#c8941a;--gold2:#e8b030;
+  --text:#ccc4b4;--text2:#888070;--text3:#555048;
+  --text-paper:#1a0808;--text-paper2:#5a3828;
+  --border:#201818;--border-red:#3d1010;
+  --success:#1a4a1a;--success-text:#60c060;
+  --warn:#4a3a00;--warn-text:#c8a830;
+  --danger-bg:#3d0000;--danger-text:#e04040;
+  --info-bg:#0a1a2a;--info-text:#4090c0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--void);color:var(--text);font-family:'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;font-size:14px;overflow:hidden}
+a{color:var(--blood3);text-decoration:none}
+
+/* ── Layout ── */
+#app{display:grid;grid-template-rows:52px 1fr;grid-template-columns:200px 1fr;height:100vh}
+#header{grid-column:1/-1;background:var(--void);border-bottom:1px solid var(--blood-dim);display:flex;align-items:center;padding:0 1.5rem;gap:1.5rem;z-index:10}
+#sidebar{background:var(--surface);border-right:1px solid var(--border-red);overflow-y:auto;padding:1rem 0}
+#main{overflow-y:auto;background:var(--void)}
+
+/* ── Header ── */
+.logo{font-size:22px;font-weight:700;letter-spacing:.18em;color:#fff;text-shadow:0 0 20px var(--blood);font-family:'Palatino Linotype',Palatino,serif}
+.logo span{color:var(--blood3)}
+.inv-selector{flex:1;display:flex;align-items:center;gap:10px}
+.inv-name{font-size:13px;color:var(--text2);padding:4px 10px;border:1px solid var(--border-red);border-radius:3px;background:var(--surface);color:var(--text);cursor:pointer;min-width:180px}
+.header-badge{font-size:10px;padding:2px 8px;border-radius:2px;letter-spacing:.05em;font-family:Georgia,serif}
+.badge-active{background:var(--blood-dim);color:var(--blood3);border:1px solid var(--blood-dim)}
+.badge-closed{background:#1a1a1a;color:var(--text2);border:1px solid var(--border)}
+.badge-high{background:var(--blood-dim);color:var(--blood3)}
+.badge-medium{background:var(--warn);color:var(--warn-text)}
+.badge-low{background:#0a200a;color:#60a060}
+.badge-lifted{background:#1a1400;color:var(--gold2)}
+.analyst-label{font-size:11px;color:var(--text3);margin-left:auto}
+
+/* ── Sidebar ── */
+.nav-section{font-size:9px;letter-spacing:.12em;color:var(--text3);padding:12px 16px 4px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;color:var(--text2);font-size:13px;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{background:var(--surface2);color:var(--text);border-left-color:var(--blood-dim)}
+.nav-item.active{background:var(--surface2);color:#fff;border-left-color:var(--blood3)}
+.nav-icon{width:16px;text-align:center;font-size:12px;opacity:.7}
+.nav-count{margin-left:auto;font-size:10px;background:var(--surface3);padding:1px 5px;border-radius:2px;color:var(--text3)}
+
+/* ── Sections ── */
+.section{padding:1.5rem}
+.section-header{display:flex;align-items:baseline;gap:12px;margin-bottom:1.5rem;padding-bottom:.75rem;border-bottom:1px solid var(--border-red)}
+.section-title{font-size:18px;color:#fff;font-weight:400;letter-spacing:.06em}
+.section-subtitle{font-size:11px;color:var(--text3);letter-spacing:.04em}
+
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:1rem 1.25rem;margin-bottom:10px}
+.card:hover{border-color:var(--border-red)}
+.card.selected{border-color:var(--blood);box-shadow:0 0 0 1px var(--blood-dim)}
+
+/* ── Paper cards (for claims) ── */
+.paper-card{background:var(--paper);border:1px solid var(--paper-line);border-radius:1px;padding:1.25rem 1.5rem;margin-bottom:12px;position:relative;
+  background-image:repeating-linear-gradient(var(--paper),var(--paper) 23px,var(--paper-line) 23px,var(--paper-line) 24px)}
+.paper-card.high-impact{border-left:4px solid var(--blood3);box-shadow:-2px 0 8px var(--blood-dim)}
+.paper-card.medium-impact{border-left:4px solid var(--gold)}
+.paper-card .claim-stmt{font-size:15px;color:var(--text-paper);font-style:italic;line-height:1.6;margin-bottom:.5rem}
+.paper-card .claim-meta{font-size:11px;color:var(--text-paper2);font-family:Georgia,serif}
+
+/* ── Confidence bar ── */
+.conf-track{height:6px;background:#2a1a1a;border-radius:1px;position:relative;overflow:visible}
+.conf-fill{height:100%;border-radius:1px;transition:width .4s,background .4s}
+.conf-fill.normal{background:linear-gradient(90deg,var(--blood-dim),var(--blood3))}
+.conf-fill.lifted{background:linear-gradient(90deg,#6a4a00,var(--gold2))}
+.conf-fill.warning{background:#2a1a00}
+.conf-ceil{position:absolute;top:-4px;width:2px;height:14px;background:var(--text2);border-radius:1px}
+.conf-pct{font-size:20px;font-weight:400;color:#fff;letter-spacing:.02em}
+.conf-label{font-size:10px;color:var(--text3);letter-spacing:.05em;margin-top:2px}
+
+/* ── Factors table ── */
+.factors{width:100%;border-collapse:collapse;font-size:12px;margin-top:.75rem}
+.factors td{padding:4px 8px;border-bottom:1px solid var(--border)}
+.factors .f-name{color:var(--text2);font-family:Georgia,serif}
+.factors .f-val{font-weight:500;text-align:right;min-width:50px;font-family:'Courier New',monospace;font-size:11px}
+.factors .f-pos{color:var(--success-text)}
+.factors .f-neg{color:var(--danger-text)}
+.factors .f-zero{color:var(--text3)}
+.factors .f-exp{color:var(--text3);font-size:11px;padding-left:8px}
+
+/* ── Auto-lift ── */
+.autolift-box{border-radius:2px;padding:.75rem 1rem;margin-top:.75rem;font-size:12px}
+.autolift-active{background:#0a0f00;border:1px solid var(--gold);color:var(--gold2)}
+.autolift-locked{background:#0a0000;border:1px solid var(--blood-dim);color:var(--text)}
+.autolift-row{display:flex;gap:6px;align-items:flex-start;margin-top:4px}
+.autolift-met{color:var(--success-text)}
+.autolift-unmet{color:var(--danger-text)}
+
+/* ── Forms ── */
+.form-group{margin-bottom:12px}
+.form-label{display:block;font-size:11px;color:var(--text2);margin-bottom:4px;letter-spacing:.03em}
+.form-label .req{color:var(--blood3)}
+input[type=text],input[type=number],input[type=password],select,textarea{
+  width:100%;padding:7px 10px;background:var(--surface2);border:1px solid var(--border-red);
+  border-radius:2px;color:var(--text);font-family:'Palatino Linotype',Palatino,Georgia,serif;font-size:13px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blood);box-shadow:0 0 0 1px var(--blood-dim)}
+textarea{resize:vertical;min-height:60px}
+select option{background:var(--surface2)}
+
+/* ── Buttons ── */
+.btn{padding:7px 14px;border-radius:2px;font-size:12px;font-family:'Palatino Linotype',Palatino,Georgia,serif;cursor:pointer;letter-spacing:.04em;transition:all .15s;border:1px solid}
+.btn-primary{background:var(--blood-dim);border-color:var(--blood);color:#fff}
+.btn-primary:hover{background:var(--blood);border-color:var(--blood3)}
+.btn-ghost{background:transparent;border-color:var(--border-red);color:var(--text2)}
+.btn-ghost:hover{border-color:var(--blood-dim);color:var(--text);background:var(--surface2)}
+.btn-gold{background:#1a0f00;border-color:var(--gold);color:var(--gold2)}
+.btn-gold:hover{background:#2a1a00}
+.btn-danger{background:var(--blood-dim);border-color:var(--blood3);color:var(--danger-text)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* ── Alerts ── */
+.alert{padding:.6rem 1rem;border-radius:2px;font-size:12px;margin-bottom:8px;border:1px solid}
+.alert-danger{background:var(--danger-bg);border-color:var(--blood);color:var(--danger-text)}
+.alert-warn{background:var(--warn);border-color:#7a6010;color:var(--warn-text)}
+.alert-success{background:var(--success);border-color:#206020;color:var(--success-text)}
+.alert-info{background:var(--info-bg);border-color:#204060;color:var(--info-text)}
+
+/* ── Evidence/CC lists ── */
+.ev-link{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.rel-badge{font-size:10px;padding:1px 6px;border-radius:1px;font-family:Georgia,serif;flex-shrink:0;margin-top:1px}
+.rel-supports{background:#082008;color:var(--success-text);border:1px solid #204020}
+.rel-undermines{background:var(--blood-dim);color:var(--danger-text);border:1px solid var(--blood)}
+.rel-neutral{background:var(--surface3);color:var(--text2);border:1px solid var(--border)}
+.cc-row{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.cc-open{color:var(--danger-text)}
+.cc-addressed{color:var(--success-text)}
+
+/* ── Audit log ── */
+.audit-entry{display:grid;grid-template-columns:90px 180px 1fr;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;font-family:'Courier New',monospace}
+.audit-ts{color:var(--text3)}
+.audit-type{color:var(--blood3)}
+.audit-detail{color:var(--text2)}
+
+/* ── Grid layouts ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+.claim-workspace{display:grid;grid-template-columns:280px 1fr;gap:0;height:calc(100vh - 52px);overflow:hidden}
+.claim-list{overflow-y:auto;border-right:1px solid var(--border-red);padding:1rem}
+.claim-detail{overflow-y:auto;padding:1.5rem}
+.cred-bar{height:4px;background:var(--surface3);border-radius:2px;margin-top:3px}
+.cred-fill{height:100%;border-radius:2px}
+
+/* ── Splash / empty states ── */
+.splash{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;text-align:center;gap:1rem}
+.splash-title{font-size:32px;letter-spacing:.2em;color:#fff;text-shadow:0 0 30px var(--blood)}
+.splash-rule{font-size:11px;color:var(--text3);font-style:italic;max-width:400px;line-height:1.8;border:1px solid var(--border-red);padding:.75rem 1.25rem}
+.empty{color:var(--text3);font-style:italic;font-size:13px;text-align:center;padding:2rem}
+
+/* ── Report preview ── */
+.report-pre{background:var(--paper);color:var(--text-paper);padding:2rem;border-radius:1px;font-family:Georgia,serif;font-size:13px;line-height:1.8;white-space:pre-wrap;word-break:break-word;border:1px solid var(--paper-line)}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--void)}
+::-webkit-scrollbar-thumb{background:var(--blood-dim);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--blood)}
+
+/* ── Verify results ── */
+.verify-item{padding:6px 10px;border-radius:2px;margin-bottom:4px;font-size:12px;display:flex;gap:8px}
+.verify-block{background:var(--danger-bg);border:1px solid var(--blood);color:var(--danger-text)}
+.verify-warn{background:var(--warn);border:1px solid #7a6010;color:var(--warn-text)}
+.verify-info{background:var(--info-bg);border:1px solid #204060;color:var(--info-text)}
+.verify-pass{background:var(--success);border:1px solid #206020;color:var(--success-text)}
+
+/* ── Modal overlay ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--surface);border:1px solid var(--blood);border-radius:2px;padding:1.5rem;min-width:400px;max-width:580px;max-height:80vh;overflow-y:auto}
+.modal-title{font-size:16px;color:#fff;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border-red)}
+
+/* ── Source cred colors ── */
+.cred-high{background:linear-gradient(90deg,#204020,var(--success-text))}
+.cred-med{background:linear-gradient(90deg,#3a2800,var(--warn-text))}
+.cred-low{background:linear-gradient(90deg,var(--blood-dim),var(--blood3))}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="header">
+    <div class="logo">JUDGE<span>MAN</span></div>
+    <div class="inv-selector">
+      <select class="inv-name" id="inv-select" onchange="App.activateById(this.value)">
+        <option value="">— no investigation selected —</option>
+      </select>
+      <span id="inv-status-badge"></span>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="App.showModal('new-inv')">+ New investigation</button>
+    <div class="analyst-label" id="analyst-label"></div>
+  </header>
+  <aside id="sidebar">
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item" data-section="claims" onclick="App.nav('claims')"><span class="nav-icon">✦</span>Claims<span class="nav-count" id="nc-claims">0</span></div>
+    <div class="nav-item" data-section="hypotheses" onclick="App.nav('hypotheses')"><span class="nav-icon">◈</span>Hypotheses<span class="nav-count" id="nc-hyps">0</span></div>
+    <div class="nav-item" data-section="sources" onclick="App.nav('sources')"><span class="nav-icon">◉</span>Sources<span class="nav-count" id="nc-srcs">0</span></div>
+    <div class="nav-item" data-section="evidence" onclick="App.nav('evidence')"><span class="nav-icon">◎</span>Evidence<span class="nav-count" id="nc-evs">0</span></div>
+    <div class="nav-section" style="margin-top:8px">Analysis</div>
+    <div class="nav-item" data-section="verify" onclick="App.nav('verify')"><span class="nav-icon">⊛</span>Verify</div>
+    <div class="nav-item" data-section="report" onclick="App.nav('report')"><span class="nav-icon">☰</span>Report</div>
+    <div class="nav-item" data-section="audit" onclick="App.nav('audit')"><span class="nav-icon">◷</span>Audit log</div>
+    <div class="nav-section" style="margin-top:8px">Investigation</div>
+    <div class="nav-item" data-section="export" onclick="App.nav('export')"><span class="nav-icon">↗</span>Export</div>
+    <div class="nav-item" data-section="close" onclick="App.nav('close')"><span class="nav-icon">◼</span>Close</div>
+  </aside>
+  <main id="main">
+    <div class="splash" id="splash">
+      <div class="splash-title">JUDGEMAN</div>
+      <div class="splash-rule">
+        The investigation whose subjects are written in this system<br>
+        shall be rigorously analysed.<br><br>
+        Confidence is not a verdict. It is a structured summary<br>
+        of the justification assembled by the analyst.<br><br>
+        The human analyst always owns final judgment.
+      </div>
+      <button class="btn btn-primary" onclick="App.showModal('new-inv')">Begin investigation</button>
+    </div>
+    <div id="content" style="display:none"></div>
+  </main>
+</div>
+
+<!-- Modals -->
+<div id="modal-container"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const Api = {
+  async get(url){const r=await fetch(url);return r.json()},
+  async post(url,data){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});return r.json()},
+  async patch(url,data){const r=await fetch(url,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});return r.json()},
+  async del(url,data){const r=await fetch(url,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify(data||{})});return r.json()},
+};
+
+const App = {
+  inv: null,
+  data: null,
+  section: 'claims',
+  selectedClaimId: null,
+
+  async init(){
+    await this.loadInvestigations();
+    const active = await Api.get('/api/investigations/active');
+    if(active){
+      this.inv = active;
+      this.updateHeader();
+      await this.loadSummary();
+      $('splash').style.display='none';
+      $('content').style.display='block';
+      this.nav('claims');
+    }
+  },
+
+  async loadInvestigations(){
+    const list = await Api.get('/api/investigations');
+    const sel = $('inv-select');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— select investigation —</option>' +
+      list.map(i=>`<option value="${i.id}" ${i.id===cur||i.id===(this.inv&&this.inv.id)?'selected':''}>${i.name} [${i.status}]</option>`).join('');
+  },
+
+  async activateById(id){
+    if(!id) return;
+    const r = await Api.post(`/api/investigations/${id}/activate`,{analyst:''});
+    if(r.ok){
+      this.inv = await Api.get('/api/investigations/active');
+      this.updateHeader();
+      await this.loadSummary();
+      $('splash').style.display='none';
+      $('content').style.display='block';
+      this.nav(this.section);
+    }
+  },
+
+  updateHeader(){
+    if(!this.inv) return;
+    $('analyst-label').textContent = `analyst: ${this.inv.analyst_id}`;
+    $('inv-status-badge').innerHTML = `<span class="header-badge badge-${this.inv.status}">${this.inv.status}</span>`;
+    // Update select
+    const sel = $('inv-select');
+    for(let opt of sel.options) if(opt.value===this.inv.id) opt.selected=true;
+  },
+
+  async loadSummary(){
+    if(!this.inv) return;
+    this.data = await Api.get('/api/investigation/summary');
+    if(!this.data) return;
+    $('nc-claims').textContent = this.data.claims.length;
+    $('nc-hyps').textContent = this.data.hypotheses.length;
+    $('nc-srcs').textContent = this.data.sources.length;
+    $('nc-evs').textContent = this.data.evidence.length;
+  },
+
+  nav(section){
+    this.section = section;
+    document.querySelectorAll('.nav-item').forEach(el=>{
+      el.classList.toggle('active', el.dataset.section===section);
+    });
+    if(!this.inv){ return; }
+    this.render(section);
+  },
+
+  render(section){
+    const el = $('content');
+    switch(section){
+      case 'claims':     el.innerHTML = this.renderClaims(); this.bindClaims(); break;
+      case 'hypotheses': el.innerHTML = this.renderHypotheses(); break;
+      case 'sources':    el.innerHTML = this.renderSources(); break;
+      case 'evidence':   el.innerHTML = this.renderEvidence(); break;
+      case 'verify':     el.innerHTML = '<div class="section"><div class="section-header"><div class="section-title">Verify</div><div class="section-subtitle">Structural integrity check</div></div><button class="btn btn-primary" onclick="App.runVerify()">Run verification</button><div id="verify-results" style="margin-top:1rem"></div></div>'; break;
+      case 'report':     el.innerHTML = '<div class="section"><div class="section-header"><div class="section-title">Report</div></div><button class="btn btn-primary" onclick="App.generateReport()">Generate report</button><div id="report-content" style="margin-top:1.5rem"></div></div>'; break;
+      case 'audit':      el.innerHTML = '<div class="section"><div class="section-header"><div class="section-title">Audit trail</div></div><div id="audit-content"></div></div>'; this.loadAudit(); break;
+      case 'export':     el.innerHTML = this.renderExport(); break;
+      case 'close':      el.innerHTML = this.renderClose(); break;
+    }
+  },
+
+  // ── Claims ──
+  renderClaims(){
+    if(!this.data) return '<div class="empty">Loading…</div>';
+    const claims = this.data.claims;
+    const list = claims.length ? claims.map(c=>this.claimCard(c)).join('') : '<div class="empty">No claims yet. Write the first entry.</div>';
+    const detail = this.selectedClaimId ? this.claimDetail(claims.find(c=>c.id===this.selectedClaimId)) : '<div class="splash" style="height:100%"><div style="color:var(--text3);font-style:italic;font-size:13px">Select a claim to examine it</div></div>';
+    return `<div class="claim-workspace">
+      <div class="claim-list">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <div style="font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase">Claims</div>
+          <button class="btn btn-primary btn-sm" onclick="App.showModal('new-claim')">+ New</button>
+        </div>
+        ${list}
+      </div>
+      <div class="claim-detail" id="claim-detail-pane">${detail}</div>
+    </div>`;
+  },
+
+  claimCard(c){
+    const conf = c.confidence;
+    const pct = conf ? Math.round(conf.displayed_confidence*100) : '?';
+    const ceil = conf ? Math.round(conf.ceiling*100) : 75;
+    const lifted = conf && conf.autolift && conf.autolift.criteria_met;
+    const selected = c.id === this.selectedClaimId;
+    return `<div class="paper-card ${c.impact_level}-impact ${selected?'selected':''}" onclick="App.selectClaim('${c.id}')" style="cursor:pointer;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <span class="header-badge badge-${c.impact_level}" style="font-size:9px">${c.impact_level}</span>
+        ${lifted?'<span class="header-badge badge-lifted" style="font-size:9px">auto-lift</span>':''}
+      </div>
+      <div class="claim-stmt">${c.statement}</div>
+      <div style="margin-top:8px">
+        <div class="conf-track">
+          <div class="conf-fill ${lifted?'lifted':'normal'}" style="width:${pct}%"></div>
+          ${c.impact_level!=='low'?`<div class="conf-ceil" style="left:${ceil}%"></div>`:''}
+        </div>
+        <div class="claim-meta" style="margin-top:3px">${pct}% confidence · ceiling ${ceil}%${lifted?' (lifted)':''}</div>
+      </div>
+    </div>`;
+  },
+
+  claimDetail(c){
+    if(!c) return '<div class="splash"><div style="color:var(--text3);font-style:italic">Claim not found</div></div>';
+    const conf = c.confidence;
+    const evLinks = this.data.evidence_claims.filter(ec=>ec.claim_id===c.id);
+    const ccs = this.data.counter_claims.filter(cc=>cc.claim_id===c.id);
+    const pct = conf ? Math.round(conf.displayed_confidence*100) : 0;
+    const rawPct = conf ? Math.round(conf.raw_confidence*100) : 0;
+    const ceil = conf ? Math.round(conf.ceiling*100) : 75;
+    const basePct = Math.round(c.base_confidence*100);
+    const lifted = conf && conf.autolift && conf.autolift.criteria_met;
+
+    const evHtml = evLinks.map(ec=>{
+      const ev = this.data.evidence.find(e=>e.id===ec.evidence_id);
+      const src = ev ? this.data.sources.find(s=>s.id===ev.source_id) : null;
+      return `<div class="ev-link">
+        <span class="rel-badge rel-${ec.relationship}">${ec.relationship.slice(0,3)}</span>
+        <div style="flex:1">
+          <div style="color:var(--text)">${ev?ev.description:'?'}</div>
+          <div style="font-size:11px;color:var(--text3)">${src?src.name:''} ${src?'cred: '+(src.credibility_score*100).toFixed(0)+'%':''}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="App.unlinkEvidence('${c.id}','${ec.evidence_id}')" title="Unlink">×</button>
+      </div>`;
+    }).join('') || '<div style="font-size:12px;color:var(--text3);padding:4px 0">No evidence linked</div>';
+
+    const ccHtml = ccs.map(cc=>`<div class="cc-row">
+      <span class="${cc.addressed?'cc-addressed':'cc-open'}" style="font-size:12px">${cc.addressed?'✓':'!'}</span>
+      <div style="flex:1">
+        <div style="color:var(--text);font-size:12px">${cc.statement}</div>
+        ${cc.addressed&&cc.address_rationale?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${cc.address_rationale}</div>`:''}
+      </div>
+      ${!cc.addressed?`<button class="btn btn-ghost btn-sm" onclick="App.showAddressCC('${cc.id}')">Address</button>`:''}
+    </div>`).join('') || '<div style="font-size:12px;color:var(--text3);padding:4px 0">No counter-claims</div>';
+
+    const factorHtml = conf ? conf.factors.map(f=>{
+      const cls = f.value>0?'f-pos':f.value<0?'f-neg':'f-zero';
+      const sign = f.value>0?'+':'';
+      return `<tr><td class="f-name">${f.name.replace(/_/g,' ')}</td><td class="f-val ${cls}">${sign}${(f.value*100).toFixed(1)}%</td><td class="f-exp">${f.explanation.slice(0,120)}</td></tr>`;
+    }).join('') : '';
+
+    const alHtml = conf && conf.autolift && conf.autolift.applicable ? `
+      <div class="autolift-box ${lifted?'autolift-active':'autolift-locked'}">
+        <div style="font-size:11px;font-weight:500;margin-bottom:6px;letter-spacing:.04em">${lifted?'⬡ AUTO-LIFT ACTIVE — ceiling raised '+Math.round((conf.autolift.lifted_ceiling||0)*100)+'%':'◈ AUTO-LIFT LOCKED'}</div>
+        ${(conf.autolift.met_criteria||[]).map(m=>`<div class="autolift-row"><span class="autolift-met">✓</span><span style="font-size:11px">${m}</span></div>`).join('')}
+        ${(conf.autolift.unmet_criteria||[]).map(u=>`<div class="autolift-row"><span class="autolift-unmet">·</span><span style="font-size:11px;color:var(--text2)">${u}</span></div>`).join('')}
+      </div>` : '';
+
+    return `
+      <div style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border-red)">
+        <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:.75rem">
+          <span class="header-badge badge-${c.impact_level}">${c.impact_level} impact</span>
+          ${lifted?'<span class="header-badge badge-lifted">auto-lift active</span>':''}
+          ${c.override_confidence?'<span class="header-badge" style="background:var(--blood-dim);color:var(--blood3);border:1px solid var(--blood)">override active</span>':''}
+        </div>
+        <div style="font-size:17px;color:#fff;font-style:italic;line-height:1.6;margin-bottom:.5rem">${c.statement}</div>
+        <div style="font-size:12px;color:var(--text3)">${c.rationale}</div>
+        ${c.what_if_wrong?`<div style="margin-top:.75rem;padding:.6rem .75rem;background:var(--surface2);border-left:3px solid var(--blood-dim);font-size:12px;color:var(--text2);font-style:italic">"${c.what_if_wrong}"</div>`:''}
+      </div>
+
+      <div class="grid-2" style="margin-bottom:1.5rem">
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:.5rem;letter-spacing:.05em;text-transform:uppercase">Confidence</div>
+          <div class="conf-pct">${pct}%</div>
+          <div class="conf-label">base: ${basePct}% · raw: ${rawPct}% · ceiling: ${ceil}%${lifted?' (lifted)':''}</div>
+          <div style="margin-top:.75rem">
+            <div class="conf-track" style="height:10px">
+              <div class="conf-fill ${lifted?'lifted':'normal'}" style="width:${pct}%"></div>
+              ${c.impact_level!=='low'?`<div class="conf-ceil" style="left:${ceil}%;top:-5px;height:20px"></div>`:''}
+            </div>
+          </div>
+          ${alHtml}
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:.5rem;letter-spacing:.05em;text-transform:uppercase">Factor breakdown</div>
+          <table class="factors">
+            <tr style="border-bottom:1px solid var(--blood-dim)"><td class="f-name" style="color:var(--text)">base confidence</td><td class="f-val" style="color:#fff">+${basePct}.0%</td><td class="f-exp">analyst-assigned</td></tr>
+            ${factorHtml}
+          </table>
+          ${conf&&conf.improvement_paths.length?`<div style="margin-top:.75rem"><div style="font-size:10px;color:var(--text3);margin-bottom:3px;letter-spacing:.04em">WHAT WOULD INCREASE CONFIDENCE</div>${conf.improvement_paths.map(p=>`<div style="font-size:11px;color:var(--text2);padding:2px 0">+ ${p}</div>`).join('')}</div>`:''}
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:.5rem;letter-spacing:.05em;text-transform:uppercase;display:flex;justify-content:space-between">
+            Linked evidence
+            <button class="btn btn-ghost btn-sm" style="font-size:10px" onclick="App.showLinkEvidence('${c.id}')">+ Link</button>
+          </div>
+          ${evHtml}
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:.5rem;letter-spacing:.05em;text-transform:uppercase;display:flex;justify-content:space-between">
+            Counter-claims
+            <button class="btn btn-ghost btn-sm" style="font-size:10px" onclick="App.showChallenge('${c.id}')">+ Challenge</button>
+          </div>
+          ${ccHtml}
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <button class="btn btn-ghost btn-sm" onclick="App.showEditClaim('${c.id}')">Edit claim</button>
+        <button class="btn btn-gold btn-sm" onclick="App.showOverride('${c.id}')">Override confidence</button>
+      </div>`;
+  },
+
+  bindClaims(){ },
+
+  async selectClaim(id){
+    this.selectedClaimId = id;
+    if(!this.data) return;
+    const pane = $('claim-detail-pane');
+    if(pane){
+      const c = this.data.claims.find(cl=>cl.id===id);
+      if(c) pane.innerHTML = this.claimDetail(c);
+    }
+    // Highlight in list
+    document.querySelectorAll('.paper-card').forEach(el=>{
+      el.classList.toggle('selected', el.onclick&&el.onclick.toString().includes(id));
+    });
+  },
+
+  // ── Hypotheses ──
+  renderHypotheses(){
+    if(!this.data) return '';
+    const hyps = this.data.hypotheses;
+    const statusColor = {active:'var(--text2)',supported:'var(--success-text)',rejected:'var(--danger-text)',inconclusive:'var(--warn-text)'};
+    return `<div class="section">
+      <div class="section-header"><div class="section-title">Hypotheses</div><div class="section-subtitle">Testable statements under investigation</div></div>
+      <div style="margin-bottom:1.5rem">
+        ${hyps.map(h=>`<div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="font-size:14px;color:#fff;font-style:italic;flex:1">${h.statement}</div>
+            <span style="font-size:11px;color:${statusColor[h.status]||'var(--text2)'};margin-left:1rem">[${h.status}]</span>
+          </div>
+          ${h.rationale?`<div style="font-size:12px;color:var(--text3);margin-top:4px">${h.rationale}</div>`:''}
+          <div class="btn-row" style="margin-top:8px">
+            ${['supported','rejected','inconclusive'].map(s=>`<button class="btn btn-ghost btn-sm" onclick="App.updateHypothesis('${h.id}','${s}')">${s}</button>`).join('')}
+          </div>
+        </div>`).join('') || '<div class="empty">No hypotheses. Define what you are testing.</div>'}
+      </div>
+      <div class="card">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">Add hypothesis</div>
+        <div class="form-group"><label class="form-label">Statement <span class="req">*</span></label><input type="text" id="hyp-stmt" placeholder="A falsifiable, testable assertion…"></div>
+        <div class="form-group"><label class="form-label">Rationale</label><input type="text" id="hyp-rat" placeholder="Why test this?"></div>
+        <button class="btn btn-primary" onclick="App.addHypothesis()">Add hypothesis</button>
+      </div>
+    </div>`;
+  },
+
+  // ── Sources ──
+  renderSources(){
+    if(!this.data) return '';
+    const srcs = this.data.sources;
+    return `<div class="section">
+      <div class="section-header"><div class="section-title">Sources</div><div class="section-subtitle">Origins of evidence with credibility assessment</div></div>
+      <div style="margin-bottom:1.5rem">
+        ${srcs.map(s=>{
+          const credPct = Math.round(s.credibility_score*100);
+          const cls = s.credibility_score>=0.7?'cred-high':s.credibility_score>=0.4?'cred-med':'cred-low';
+          return `<div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <div style="font-size:14px;color:#fff">${s.name}</div>
+                <div style="font-size:11px;color:var(--text3)">${s.reference.slice(0,60)}${s.reference.length>60?'…':''}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:18px;color:#fff;font-weight:400">${credPct}%</div>
+                <div style="font-size:10px;color:var(--text3)">${s.source_type}</div>
+              </div>
+            </div>
+            <div class="cred-bar" style="margin:8px 0"><div class="cred-fill ${cls}" style="width:${credPct}%"></div></div>
+            <div style="font-size:11px;color:var(--text3)">${s.credibility_rationale.slice(0,80)}${s.credibility_rationale.length>80?'…':''}</div>
+            ${s.independence_group?`<div style="font-size:10px;color:var(--text3);margin-top:3px">group: ${s.independence_group}</div>`:''}
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">${s.ev_count} evidence item(s)</div>
+          </div>`;
+        }).join('') || '<div class="empty">No sources. Register the origins of your evidence.</div>'}
+      </div>
+      <div class="card">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">Register source</div>
+        <div class="grid-2">
+          <div class="form-group"><label class="form-label">Name <span class="req">*</span></label><input type="text" id="src-name" placeholder="Companies House"></div>
+          <div class="form-group"><label class="form-label">Type <span class="req">*</span></label><select id="src-type"><option>documentary</option><option>primary</option><option>secondary</option><option>tertiary</option><option>human</option><option>technical</option></select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Reference <span class="req">*</span></label><input type="text" id="src-ref" placeholder="URL, document path, case exhibit number…"></div>
+        <div class="grid-2">
+          <div class="form-group"><label class="form-label">Credibility (0–1) <span class="req">*</span></label><input type="number" id="src-cred" min="0" max="1" step="0.05" value="0.8"></div>
+          <div class="form-group"><label class="form-label">Independence group</label><input type="text" id="src-grp" placeholder="e.g. govt-registry (optional)"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Credibility rationale <span class="req">*</span></label><textarea id="src-rat" style="min-height:48px" placeholder="Why this credibility score? Track record, bias, verification…"></textarea></div>
+        <button class="btn btn-primary" onclick="App.addSource()">Register source</button>
+      </div>
+    </div>`;
+  },
+
+  // ── Evidence ──
+  renderEvidence(){
+    if(!this.data) return '';
+    const evs = this.data.evidence;
+    return `<div class="section">
+      <div class="section-header"><div class="section-title">Evidence</div><div class="section-subtitle">Discrete observations linked to sources</div></div>
+      <div style="margin-bottom:1.5rem">
+        ${evs.map(e=>`<div class="card">
+          <div style="font-size:13px;color:#fff">${e.description}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">Source: ${e.source_name} (${Math.round(e.credibility_score*100)}%)</div>
+          ${e.raw_content_ref?`<div style="font-size:10px;color:var(--text3)">ref: ${e.raw_content_ref}</div>`:''}
+        </div>`).join('') || '<div class="empty">No evidence recorded yet.</div>'}
+      </div>
+      <div class="card">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">Record evidence</div>
+        <div class="form-group"><label class="form-label">Description <span class="req">*</span></label><input type="text" id="ev-desc" placeholder="What was observed?"></div>
+        <div class="grid-2">
+          <div class="form-group"><label class="form-label">Source <span class="req">*</span></label><select id="ev-src">${(this.data.sources||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select></div>
+          <div class="form-group"><label class="form-label">Reference</label><input type="text" id="ev-ref" placeholder="File path, exhibit number…"></div>
+        </div>
+        <button class="btn btn-primary" onclick="App.addEvidence()">Record evidence</button>
+      </div>
+    </div>`;
+  },
+
+  // ── Export / Close ──
+  renderExport(){
+    return `<div class="section">
+      <div class="section-header"><div class="section-title">Export</div><div class="section-subtitle">Tamper-evident investigation bundle</div></div>
+      <div class="card">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">The export bundle includes full investigation data, audit trail, and a chain hash for integrity verification.</div>
+        <div class="form-group"><label class="form-label">Output directory</label><input type="text" id="exp-dir" value="${window.location.hostname==='127.0.0.1'?'~/Downloads':'~/Downloads'}"></div>
+        <div class="form-group"><label class="form-label">Export note (optional)</label><input type="text" id="exp-note" placeholder="Recipient, purpose, classification…"></div>
+        <button class="btn btn-primary" onclick="App.exportInv()">Export investigation</button>
+        <div id="export-result" style="margin-top:1rem"></div>
+      </div>
+    </div>`;
+  },
+
+  renderClose(){
+    const inv = this.inv;
+    if(!inv) return '';
+    if(inv.status==='closed') return `<div class="section">
+      <div class="section-header"><div class="section-title">Investigation closed</div></div>
+      <div class="card">
+        <div style="margin-bottom:1rem;color:var(--text2)">This investigation is closed.</div>
+        <div class="form-group"><label class="form-label">Reason to reopen <span class="req">*</span></label><textarea id="reopen-reason" placeholder="New evidence emerged, error in analysis…"></textarea></div>
+        <button class="btn btn-ghost" onclick="App.reopenInv()">Reopen investigation</button>
+      </div>
+    </div>`;
+    return `<div class="section">
+      <div class="section-header"><div class="section-title">Close investigation</div><div class="section-subtitle">Formal conclusion with closing statement</div></div>
+      <div class="alert alert-warn">The closing statement must describe findings and uncertainties. It must not contain legal judgments or enforcement recommendations.</div>
+      <div class="card" style="margin-top:1rem">
+        <div class="form-group"><label class="form-label">Closing statement <span class="req">*</span></label><textarea id="close-stmt" style="min-height:120px" placeholder="Summarise findings, confidence levels, outstanding uncertainties, and limitations of this investigation…"></textarea></div>
+        <div class="btn-row">
+          <button class="btn btn-danger" onclick="App.closeInv(false)">Close investigation</button>
+          <button class="btn btn-ghost btn-sm" onclick="App.closeInv(true)">Force close (override language check)</button>
+        </div>
+        <div id="close-result" style="margin-top:1rem"></div>
+      </div>
+    </div>`;
+  },
+
+  // ── Actions ──
+  async addHypothesis(){
+    const stmt = $('hyp-stmt').value.trim();
+    const rat = $('hyp-rat').value.trim();
+    if(!stmt){ this.flash('Statement required','danger'); return; }
+    const r = await Api.post('/api/hypotheses',{statement:stmt,rationale:rat});
+    if(r.ok){ await this.loadSummary(); this.nav('hypotheses'); }
+    else this.flash(r.error,'danger');
+  },
+
+  async updateHypothesis(id, status){
+    const rat = prompt(`Rationale for marking this hypothesis as '${status}':`);
+    if(!rat||!rat.trim()) return;
+    const r = await Api.patch(`/api/hypotheses/${id}`,{status,rationale:rat});
+    if(r.ok){ await this.loadSummary(); this.nav('hypotheses'); }
+    else this.flash(r.error,'danger');
+  },
+
+  async addSource(){
+    const d = {
+      name: $('src-name').value.trim(),
+      reference: $('src-ref').value.trim(),
+      source_type: $('src-type').value,
+      credibility_score: parseFloat($('src-cred').value),
+      credibility_rationale: $('src-rat').value.trim(),
+      independence_group: $('src-grp').value.trim() || null,
+    };
+    if(!d.name||!d.reference||!d.credibility_rationale){ this.flash('Name, reference, and credibility rationale required','danger'); return; }
+    const r = await Api.post('/api/sources',d);
+    if(r.ok){ await this.loadSummary(); this.nav('sources'); }
+    else this.flash(r.error,'danger');
+  },
+
+  async addEvidence(){
+    const d = { description: $('ev-desc').value.trim(), source_id: $('ev-src').value, raw_content_ref: $('ev-ref').value.trim()||null };
+    if(!d.description||!d.source_id){ this.flash('Description and source required','danger'); return; }
+    const r = await Api.post('/api/evidence',d);
+    if(r.ok){ await this.loadSummary(); this.nav('evidence'); }
+    else this.flash(r.error,'danger');
+  },
+
+  async unlinkEvidence(claimId, evId){
+    const reason = prompt('Reason for removing this evidence link:\n(This is permanently logged)');
+    if(!reason||!reason.trim()) return;
+    const r = await Api.del(`/api/claims/${claimId}/link/${evId}`,{reason});
+    if(r.ok){ await this.loadSummary(); await this.selectClaim(claimId); }
+    else this.flash(r.error,'danger');
+  },
+
+  async runVerify(){
+    const el = $('verify-results');
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px">Running verification…</div>';
+    const r = await Api.get('/api/verify');
+    let html = '';
+    if(r.passed && !r.warnings.length && !r.infos.length){
+      html = '<div class="verify-item verify-pass">✓ Investigation passes all structural integrity checks</div>';
+    } else {
+      if(r.blocking.length){ html += `<div style="font-size:11px;color:var(--danger-text);margin-bottom:4px;letter-spacing:.05em">BLOCKING (${r.blocking.length})</div>`; r.blocking.forEach(b=>{ html+=`<div class="verify-item verify-block">✗ ${b}</div>`; }); }
+      if(r.warnings.length){ html += `<div style="font-size:11px;color:var(--warn-text);margin:8px 0 4px;letter-spacing:.05em">WARNINGS (${r.warnings.length})</div>`; r.warnings.forEach(w=>{ html+=`<div class="verify-item verify-warn">⚠ ${w}</div>`; }); }
+      if(r.infos.length){ html += `<div style="font-size:11px;color:var(--info-text);margin:8px 0 4px;letter-spacing:.05em">INFO (${r.infos.length})</div>`; r.infos.forEach(i=>{ html+=`<div class="verify-item verify-info">· ${i}</div>`; }); }
+    }
+    el.innerHTML = html;
+  },
+
+  async generateReport(){
+    const el = $('report-content');
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px">Generating report…</div>';
+    const r = await Api.get('/api/report');
+    el.innerHTML = `<div style="margin-bottom:1rem;display:flex;gap:.5rem">
+      <button class="btn btn-ghost btn-sm" onclick="App.copyReport()">Copy markdown</button>
+    </div>
+    <div class="report-pre" id="report-md">${r.markdown.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>`;
+  },
+
+  copyReport(){
+    const md = $('report-md');
+    if(md) navigator.clipboard.writeText(md.textContent);
+    this.flash('Report copied to clipboard','success');
+  },
+
+  async loadAudit(){
+    const el = $('audit-content');
+    if(!el) return;
+    const rows = await Api.get('/api/audit?limit=200');
+    el.innerHTML = rows.length ? rows.map(r=>`<div class="audit-entry">
+      <span class="audit-ts">${r.timestamp.slice(11,19)}</span>
+      <span class="audit-type">${r.action_type}</span>
+      <span class="audit-detail">${r.entity_type}${r.entity_id?' '+r.entity_id.slice(0,8)+'…':''} ${r.justification?'· '+r.justification.slice(0,60):''}</span>
+    </div>`).join('') : '<div class="empty">No audit entries yet.</div>';
+  },
+
+  async exportInv(){
+    const d = { output_dir: $('exp-dir').value.trim()||'~/Downloads', note: $('exp-note').value.trim()||null };
+    const el = $('export-result');
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px">Exporting…</div>';
+    const r = await Api.post('/api/export',d);
+    el.innerHTML = r.ok ? `<div class="alert alert-success">Exported: ${r.data.path||'check output directory'}</div>` : `<div class="alert alert-danger">${r.error}</div>`;
+  },
+
+  async closeInv(force){
+    const stmt = $('close-stmt').value.trim();
+    if(!stmt){ this.flash('Closing statement required','danger'); return; }
+    const r = await Api.post(`/api/investigations/${this.inv.id}/close`,{statement:stmt,force});
+    const el = $('close-result');
+    if(r.prohibited){ el.innerHTML = `<div class="alert alert-warn">Prohibited language detected: ${JSON.stringify(r.error)}. Use "Force close" to proceed.</div>`; return; }
+    if(r.ok){
+      this.inv.status='closed';
+      this.updateHeader();
+      el.innerHTML = '<div class="alert alert-success">Investigation closed.</div>';
+      await this.loadInvestigations();
+      this.render('close');
+    } else {
+      el.innerHTML = `<div class="alert alert-danger">${r.error}</div>`;
+    }
+  },
+
+  async reopenInv(){
+    const reason = $('reopen-reason').value.trim();
+    if(!reason){ this.flash('Reason required','danger'); return; }
+    const r = await Api.post(`/api/investigations/${this.inv.id}/reopen`,{reason});
+    if(r.ok){ this.inv.status='active'; this.updateHeader(); this.render('close'); }
+    else this.flash(r.error,'danger');
+  },
+
+  flash(msg, type='info'){
+    const el = document.createElement('div');
+    el.className = `alert alert-${type}`;
+    el.style.cssText = 'position:fixed;top:60px;right:1rem;z-index:200;min-width:200px;max-width:400px;box-shadow:0 2px 8px rgba(0,0,0,.5)';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 3500);
+  },
+
+  // ── Modals ──
+  showModal(type, data={}){
+    const container = $('modal-container');
+    let html = '';
+    if(type==='new-inv'){
+      html = `<div class="modal">
+        <div class="modal-title">Begin investigation</div>
+        <div class="form-group"><label class="form-label">Name <span class="req">*</span></label><input type="text" id="m-inv-name" placeholder="Operation Thornfield" autofocus></div>
+        <div class="form-group"><label class="form-label">Analyst ID</label><input type="text" id="m-inv-analyst" placeholder="your name or callsign"></div>
+        <div class="form-group"><label class="form-label">Description</label><input type="text" id="m-inv-desc" placeholder="Brief description…"></div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="App.createInvestigation()">Create</button><button class="btn btn-ghost" onclick="App.closeModal()">Cancel</button></div>
+      </div>`;
+    } else if(type==='new-claim'){
+      const hyps = (this.data&&this.data.hypotheses)||[];
+      html = `<div class="modal">
+        <div class="modal-title">Create claim</div>
+        <div class="form-group"><label class="form-label">Statement <span class="req">*</span></label><textarea id="m-cl-stmt" style="min-height:60px" placeholder="A specific, falsifiable assertion…"></textarea></div>
+        <div class="grid-2">
+          <div class="form-group"><label class="form-label">Base confidence <span class="req">*</span></label><input type="number" id="m-cl-base" min="0" max="1" step="0.05" value="0.65"></div>
+          <div class="form-group"><label class="form-label">Impact level <span class="req">*</span></label><select id="m-cl-impact"><option value="low">low</option><option value="medium">medium</option><option value="high" selected>high</option></select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Rationale <span class="req">*</span></label><textarea id="m-cl-rat" style="min-height:48px" placeholder="Why this base confidence?"></textarea></div>
+        <div class="form-group"><label class="form-label">What if I'm wrong? <span class="req" id="wiw-req">*</span> <span style="font-size:10px;color:var(--text3)">(required for high-impact)</span></label><textarea id="m-cl-wiw" style="min-height:60px" placeholder="Alternative explanations, failure modes, identification errors…"></textarea></div>
+        ${hyps.length?`<div class="form-group"><label class="form-label">Link to hypothesis</label><select id="m-cl-hyp"><option value="">— none —</option>${hyps.map(h=>`<option value="${h.id}">${h.statement.slice(0,60)}</option>`).join('')}</select></div>`:''}
+        <div class="btn-row"><button class="btn btn-primary" onclick="App.createClaim()">Write claim</button><button class="btn btn-ghost" onclick="App.closeModal()">Cancel</button></div>
+      </div>`;
+    } else if(type==='link-evidence'){
+      const evs = (this.data&&this.data.evidence)||[];
+      html = `<div class="modal">
+        <div class="modal-title">Link evidence to claim</div>
+        <div class="form-group"><label class="form-label">Evidence <span class="req">*</span></label><select id="m-lk-ev">${evs.map(e=>`<option value="${e.id}">${e.description.slice(0,55)}</option>`).join('')}</select></div>
+        <div class="form-group"><label class="form-label">Relationship <span class="req">*</span></label><select id="m-lk-rel"><option value="supports">supports — increases plausibility</option><option value="undermines">undermines — decreases plausibility</option><option value="neutral">neutral — contextually relevant</option></select></div>
+        <div class="form-group"><label class="form-label">Relevance note</label><input type="text" id="m-lk-note" placeholder="Why does this evidence relate to the claim?"></div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="App.linkEvidence('${data.claimId}')">Link</button><button class="btn btn-ghost" onclick="App.closeModal()">Cancel</button></div>
+      </div>`;
+    } else if(type==='challenge'){
+      html = `<div class="modal">
+        <div class="modal-title">Add counter-claim</div>
+        <div class="alert alert-info" style="margin-bottom:1rem">A counter-claim is an alternative explanation. It applies a −10% confidence penalty until addressed.</div>
+        <div class="form-group"><label class="form-label">Counter-claim <span class="req">*</span></label><textarea id="m-cc-stmt" style="min-height:80px" placeholder="An alternative explanation that challenges this claim…"></textarea></div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="App.addChallenge('${data.claimId}')">Submit counter-claim</button><button class="btn btn-ghost" onclick="App.closeModal()">Cancel</button></div>
+      </div>`;
+    } else if(type==='address-cc'){
+      html = `<div class="modal">
+        <div class="modal-title">Address counter-claim</div>
+        <div class="alert alert-warn" style="margin-bottom:1rem">Addressing a counter-claim requires substantive rationale. Peers reviewing this investigation will evaluate the quality of your reasoning.</div>
+        <div class="form-group"><label class="form-label">Rationale <span class="req">*</span></label><textarea id="m-cc-rat" style="min-height:100px" placeholder="Explain why this counter-claim does not undermine the claim. Reference specific evidence, corroboration, or logical analysis…"></textarea></div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="App.addressCC('${data.ccId}')">Address counter-claim</button><button class="btn btn-ghost" onclick="App.closeModal()">Cancel</button></div>
+      </div>`;
+    } else if(type==='override'){
+      html = `<div class="modal">
+        <div class="modal-title">Override confidence ceiling</div>
+        <div class="alert alert-danger" style="margin-bottom:1rem">This override is permanently logged. Use only when structural criteria cannot be met due to domain constraints.</div>
+        <div class="form-group"><label class="form-label">Proposed confidence (0–1) <span class="req">*</span></label><input type="number" id="m-ov-conf" min="0" max="1" step="0.01"></div>
+        <div class="form-group"><label class="form-label">Justification <span class="req">*</span> <span style="font-size:10px;color:var(--text3)">(min. 30 chars)</span></label><textarea id="m-ov-just" style="min-height:80px" placeholder="Why is the ceiling insufficient in this specific case?"></textarea></div>
+        <div class="btn-row"><button class="btn btn-danger" onclick="App.submitOverride('${data.claimId}')">Record override</button><button class="btn btn-ghost" onclick="App.closeModal()">Cancel</button></div>
+      </div>`;
+    } else if(type==='edit-claim'){
+      const c = data.claim;
+      html = `<div class="modal">
+        <div class="modal-title">Edit claim</div>
+        <div class="form-group"><label class="form-label">Statement</label><textarea id="m-ed-stmt" style="min-height:60px">${c.statement}</textarea></div>
+        <div class="form-group"><label class="form-label">Rationale</label><textarea id="m-ed-rat" style="min-height:60px">${c.rationale}</textarea></div>
+        <div class="form-group"><label class="form-label">What if I'm wrong?</label><textarea id="m-ed-wiw" style="min-height:60px">${c.what_if_wrong||''}</textarea></div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="App.submitEditClaim('${c.id}')">Save changes</button><button class="btn btn-ghost" onclick="App.closeModal()">Cancel</button></div>
+      </div>`;
+    }
+    container.innerHTML = `<div class="modal-bg" onclick="if(event.target===this)App.closeModal()">${html}</div>`;
+  },
+
+  closeModal(){ $('modal-container').innerHTML=''; },
+
+  showLinkEvidence(claimId){ this.showModal('link-evidence',{claimId}); },
+  showChallenge(claimId){ this.showModal('challenge',{claimId}); },
+  showAddressCC(ccId){ this.showModal('address-cc',{ccId}); },
+  showOverride(claimId){ this.showModal('override',{claimId}); },
+  showEditClaim(claimId){
+    const c = this.data&&this.data.claims.find(cl=>cl.id===claimId);
+    if(c) this.showModal('edit-claim',{claim:c});
+  },
+
+  async createInvestigation(){
+    const d = { name: $('m-inv-name').value.trim(), analyst: $('m-inv-analyst').value.trim(), description: $('m-inv-desc').value.trim() };
+    if(!d.name){ this.flash('Name required','danger'); return; }
+    const r = await Api.post('/api/investigations',d);
+    if(r.ok){
+      this.closeModal();
+      await this.loadInvestigations();
+      await this.activateById(r.data.id);
+    } else this.flash(r.error,'danger');
+  },
+
+  async createClaim(){
+    const d = {
+      statement: $('m-cl-stmt').value.trim(),
+      base_confidence: parseFloat($('m-cl-base').value),
+      impact_level: $('m-cl-impact').value,
+      rationale: $('m-cl-rat').value.trim(),
+      what_if_wrong: $('m-cl-wiw').value.trim()||null,
+      hypothesis_id: ($('m-cl-hyp')&&$('m-cl-hyp').value)||null,
+    };
+    if(!d.statement||!d.rationale){ this.flash('Statement and rationale required','danger'); return; }
+    if(d.impact_level==='high'&&!d.what_if_wrong){ this.flash("High-impact claims require 'What if I'm wrong?'",'danger'); return; }
+    const r = await Api.post('/api/claims',d);
+    if(r.ok){
+      this.closeModal();
+      await this.loadSummary();
+      this.nav('claims');
+      this.selectedClaimId = r.data.id;
+      this.nav('claims');
+    } else this.flash(r.error,'danger');
+  },
+
+  async linkEvidence(claimId){
+    const d = { evidence_id: $('m-lk-ev').value, relationship: $('m-lk-rel').value.split(' ')[0], relevance_note: $('m-lk-note').value.trim()||null };
+    const r = await Api.post(`/api/claims/${claimId}/link`,d);
+    if(r.ok){ this.closeModal(); await this.loadSummary(); this.selectClaim(claimId); }
+    else this.flash(r.error,'danger');
+  },
+
+  async addChallenge(claimId){
+    const stmt = $('m-cc-stmt').value.trim();
+    if(!stmt){ this.flash('Statement required','danger'); return; }
+    const r = await Api.post(`/api/claims/${claimId}/challenge`,{statement:stmt});
+    if(r.ok){ this.closeModal(); await this.loadSummary(); this.selectClaim(claimId); }
+    else this.flash(r.error,'danger');
+  },
+
+  async addressCC(ccId){
+    const rat = $('m-cc-rat').value.trim();
+    if(!rat){ this.flash('Rationale required','danger'); return; }
+    const r = await Api.post(`/api/counterclaims/${ccId}/address`,{rationale:rat});
+    if(r.ok){
+      this.closeModal();
+      await this.loadSummary();
+      if(this.selectedClaimId) this.selectClaim(this.selectedClaimId);
+    } else this.flash(r.error,'danger');
+  },
+
+  async submitOverride(claimId){
+    const d = { confidence: parseFloat($('m-ov-conf').value), justification: $('m-ov-just').value.trim() };
+    const r = await Api.post(`/api/claims/${claimId}/override`,d);
+    if(r.ok){ this.closeModal(); await this.loadSummary(); this.selectClaim(claimId); }
+    else this.flash(r.error,'danger');
+  },
+
+  async submitEditClaim(claimId){
+    const d = { statement: $('m-ed-stmt').value.trim(), rationale: $('m-ed-rat').value.trim(), what_if_wrong: $('m-ed-wiw').value.trim()||null };
+    const r = await Api.patch(`/api/claims/${claimId}/edit`,d);
+    if(r.ok){ this.closeModal(); await this.loadSummary(); this.selectClaim(claimId); }
+    else this.flash(r.error,'danger');
+  },
+};
+
+window.addEventListener('DOMContentLoaded', ()=>App.init());
+</script>
+</body>
+</html>
